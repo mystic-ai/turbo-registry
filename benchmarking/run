@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Initialize variables
+sizes=()
+
+# Parse command-line options using getopts
+while getopts ":s:" opt; do
+  case $opt in
+    s)
+      sizes+=("$OPTARG")
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Shift off the options and optional --
+shift $((OPTIND-1))
+
+# The first non-option argument should be the address:port
+address_port=$1
+
+# Check if address:port was provided
+if [ -z "$address_port" ]; then
+    echo "Usage: $0 <address:port> [-s <size1>] [-s <size2>] ..."
+    exit 1
+fi
+
+# Output the parsed values
+echo "Address:Port = $address_port"
+echo "Sizes = ${sizes[@]}"
+
+# Example of using the parsed values in a loop
+for size in "${sizes[@]}"; do
+    echo "Processing size: $size"
+    dc=$(IMAGE_SIZE=$size REGISTRY_ADDRESS=$address_port envsubst < ./docker-compose.yaml)
+    echo "$dc" | sudo docker compose -f - build
+
+    # Push the image to the registry
+    echo "$dc" | sudo docker compose -f - push
+
+    # Remove the local copy of the image 
+    sudo docker image rm $address_port/tr-benchmark:$size
+    
+    # Get the time taken to pull as a variable
+    pull_time=$(time sudo docker pull $address_port/tr-benchmark:$size 2>&1 | grep real | awk '{print $2}')
+done
