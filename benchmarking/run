@@ -66,7 +66,8 @@ for size in "${sizes[@]}"; do
 
     # Remove the local copy of the image 
     sudo docker image rm $address_port/tr-benchmark:$TAG
-    
+    sudo docker buildx prune --all
+
     # Get the time taken to pull as a variable
     pull_time=$(time sudo docker pull $address_port/tr-benchmark:$TAG 2>&1 | grep real | awk '{print $2}')
 done
