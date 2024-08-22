@@ -2,12 +2,18 @@
 
 # Initialize variables
 sizes=()
+number_of_files=10000
 
 # Parse command-line options using getopts
-while getopts ":s:" opt; do
+while getopts ":s:n:" opt; do
   case $opt in
     s)
-      sizes+=("$OPTARG")
+
+      # Make sure that the size is just a number
+      sizes+=($((OPTARG * 1000 * 1000)))
+      ;;
+    n)
+      number_of_files=$OPTARG
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -36,18 +42,31 @@ fi
 echo "Address:Port = $address_port"
 echo "Sizes = ${sizes[@]}"
 
+
+
 # Example of using the parsed values in a loop
 for size in "${sizes[@]}"; do
     echo "Processing size: $size"
-    dc=$(IMAGE_SIZE=$size REGISTRY_ADDRESS=$address_port envsubst < ./docker-compose.yaml)
+
+    per_file_size=$(($size / $number_of_files))
+
+    # Make sure that the per-file size is an integer, if not make it
+    # an integer
+    if [ $per_file_size -ne $size ]; then
+        per_file_size=$(($per_file_size + 1))
+    fi
+
+    TAG="$((size / 1000000))mb"
+    dc=$(TAG=$TAG FILE_SIZE=$per_file_size N_FILES=$number_of_files IMAGE_SIZE=$size REGISTRY_ADDRESS=$address_port envsubst < ./docker-compose.yaml)
     echo "$dc" | sudo docker compose -f - build
+    # exit 1
 
     # Push the image to the registry
     echo "$dc" | sudo docker compose -f - push
 
     # Remove the local copy of the image 
-    sudo docker image rm $address_port/tr-benchmark:$size
+    sudo docker image rm $address_port/tr-benchmark:$TAG
     
     # Get the time taken to pull as a variable
-    pull_time=$(time sudo docker pull $address_port/tr-benchmark:$size 2>&1 | grep real | awk '{print $2}')
+    pull_time=$(time sudo docker pull $address_port/tr-benchmark:$TAG 2>&1 | grep real | awk '{print $2}')
 done

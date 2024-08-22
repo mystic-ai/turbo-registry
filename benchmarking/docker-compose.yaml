@@ -1,8 +1,9 @@
 version: "3.3"
 services:
-  tr-benchmark-${IMAGE_SIZE}:
-    image: ${REGISTRY_ADDRESS}/tr-benchmark:${IMAGE_SIZE}
+  tr-benchmark-${TAG}:
+    image: ${REGISTRY_ADDRESS}/tr-benchmark:${TAG}
     build:
       dockerfile: ./benchy.dockerfile
       args:
-        IMAGE_SIZE: ${IMAGE_SIZE}
+        FILE_SIZE: ${FILE_SIZE}
+        N_FILES: ${N_FILES}
